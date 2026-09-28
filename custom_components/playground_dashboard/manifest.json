@@ -1,0 +1,12 @@
+{
+  "domain": "playground_dashboard",
+  "name": "Playground Dashboard",
+  "codeowners": ["@greatmastix"],
+  "config_flow": true,
+  "documentation": "https://github.com/greatmastix/HA-ServerDashboard",
+  "integration_type": "device",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/greatmastix/HA-ServerDashboard/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

@@ -1,0 +1,142 @@
+{
+  "t": "2026-09-28T17:11:29.678Z",
+  "system": {
+    "hostname": "myhost",
+    "os": "Ubuntu 26.04.1 LTS",
+    "kernel": "7.0.0-34-generic",
+    "cpuModel": "Intel Xeon Processor (Skylake, IBRS, no TSX)",
+    "cores": 16,
+    "virt": "Hetzner vServer",
+    "memTotalBytes": 32853897216,
+    "swapTotalBytes": 0,
+    "diskTotalBytes": 322211975168,
+    "uptimeSeconds": 9645,
+    "bootTime": "2026-09-28T14:30:44.918Z",
+    "dashboardUrl": "https://dashboard.example.com",
+    "apiVersion": "1.0"
+  },
+  "metrics": {
+    "cpuPct": 1.5,
+    "cpuPerCorePct": [1.4, 1.4, 1.0, 0.8, 2.1, 0.5, 1.2, 0.9, 1.1, 0.7, 1.6, 0.4, 1.3, 0.6, 2.0, 1.0],
+    "cpuIowaitPct": 0,
+    "cpuStealPct": 0,
+    "load1": 0.49, "load5": 0.5, "load15": 0.52,
+    "memUsedBytes": 3517116416,
+    "memAvailableBytes": 29336780800,
+    "memCachedBytes": 5720391680,
+    "memTotalBytes": 32853897216,
+    "memPct": 10.7,
+    "swapUsedBytes": 0, "swapTotalBytes": 0, "swapPct": null,
+    "diskUsedBytes": 8427683840,
+    "diskFreeBytes": 300655792128,
+    "diskTotalBytes": 322211975168,
+    "diskPct": 2.7,
+    "diskReadBytesPerSec": 808,
+    "diskWriteBytesPerSec": 453137,
+    "netRxBytesPerSec": 6765,
+    "netTxBytesPerSec": 23211,
+    "netRxBytesTotal": 1268736027,
+    "netTxBytesTotal": 160195519,
+    "processCount": 111
+  },
+  "summary": {
+    "containersTotal": 2, "containersRunning": 1, "containersUnhealthy": 0, "containersStopped": 1,
+    "sitesTotal": 2, "sitesUp": 1, "sitesDown": 1,
+    "certMinDaysLeft": 89
+  },
+  "updates": {
+    "checked": "2026-09-28T16:32:06Z",
+    "updates": 2,
+    "security": 1,
+    "rebootRequired": false,
+    "rebootPackages": [],
+    "kernel": "7.0.0-34-generic",
+    "packages": [
+      { "name": "openssl", "from": "3.4.1-1ubuntu1", "to": "3.4.1-1ubuntu1.1", "security": true },
+      { "name": "tzdata", "from": "2026a-1", "to": "2026b-1", "security": false }
+    ],
+    "job": { "action": "check", "state": "done", "started": "2026-09-28T14:31:58Z", "finished": "2026-09-28T14:32:02Z", "exit": 0 },
+    "actionPending": false,
+    "busy": false
+  },
+  "services": [
+    { "name": "caddy", "running": true },
+    { "name": "dockerd", "running": true },
+    { "name": "containerd", "running": true },
+    { "name": "sshd", "running": true }
+  ],
+  "containers": [
+    {
+      "key": "shortener_app_1",
+      "name": "shortener-app-1",
+      "id": "afa7cd309306",
+      "stack": "shortener",
+      "service": "app",
+      "image": "shortener-app:local",
+      "state": "running",
+      "running": true,
+      "health": "healthy",
+      "status": "Up 5 minutes (healthy)",
+      "cpuPct": 0.12,
+      "memBytes": 53374976,
+      "memLimitBytes": 268435456,
+      "memPct": 19.9,
+      "created": "2026-09-28T17:06:00.000Z"
+    },
+    {
+      "key": "worker_app_1",
+      "name": "worker-app-1",
+      "id": "9b8113f9c85b",
+      "stack": "worker",
+      "service": "app",
+      "image": "node:22-alpine",
+      "state": "exited",
+      "running": false,
+      "health": null,
+      "status": "Exited (1) 3 minutes ago",
+      "cpuPct": 0,
+      "memBytes": null,
+      "memLimitBytes": null,
+      "memPct": null,
+      "created": "2026-09-28T15:58:22.000Z"
+    }
+  ],
+  "sites": [
+    {
+      "key": "dashboard",
+      "name": "dashboard",
+      "url": "https://dashboard.example.com",
+      "host": "dashboard.example.com",
+      "aliases": [],
+      "kind": "proxy",
+      "basicAuth": false,
+      "containers": ["dashboard-app-1"],
+      "up": true,
+      "httpStatus": 200,
+      "responseMs": 153,
+      "error": null,
+      "failingHost": null,
+      "certExpires": "2026-12-27T12:29:26.000Z",
+      "certDaysLeft": 89,
+      "checked": "2026-09-28T17:10:59.309Z"
+    },
+    {
+      "key": "shortener",
+      "name": "shortener",
+      "url": "https://shortener.example.com",
+      "host": "shortener.example.com",
+      "aliases": ["s.example.org", "s.example.net"],
+      "kind": "proxy",
+      "basicAuth": false,
+      "containers": ["shortener-app-1"],
+      "up": false,
+      "httpStatus": 502,
+      "responseMs": 41,
+      "error": null,
+      "failingHost": "s.example.org",
+      "certExpires": "2026-12-27T15:19:46.000Z",
+      "certDaysLeft": 89,
+      "checked": "2026-09-28T17:10:59.243Z"
+    }
+  ]
+}

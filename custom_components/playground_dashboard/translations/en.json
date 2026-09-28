@@ -1,0 +1,110 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Playground Dashboard",
+        "description": "Create an API key in the dashboard (\"API keys\" button). Tick **control** only if you want buttons for update checks, upgrades and reboots.",
+        "data": {
+          "url": "Dashboard URL",
+          "api_key": "API key",
+          "verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "url": "Base URL of the dashboard, without /api/v1",
+          "api_key": "Token starting with pgd_"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate",
+        "description": "The API key for {host} was rejected (revoked or invalid). Enter a new key.",
+        "data": {
+          "api_key": "API key"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the dashboard.",
+      "invalid_auth": "The API key was rejected.",
+      "invalid_api_key_format": "That doesn't look like a dashboard API key (pgd_…).",
+      "invalid_url": "Enter a full http(s) URL.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This server is already configured.",
+      "reauth_successful": "Re-authentication was successful.",
+      "wrong_server": "This API key belongs to a different server."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Playground Dashboard options",
+        "data": {
+          "scan_interval": "Polling interval",
+          "containers": "Create container entities",
+          "sites": "Create site entities"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "cpu": { "name": "CPU" },
+      "load_1": { "name": "Load (1 min)" },
+      "load_5": { "name": "Load (5 min)" },
+      "load_15": { "name": "Load (15 min)" },
+      "memory_used": { "name": "Memory used" },
+      "memory_used_bytes": { "name": "Memory used (bytes)" },
+      "swap_used": { "name": "Swap used" },
+      "disk_used": { "name": "Disk used" },
+      "disk_free": { "name": "Disk free" },
+      "disk_read": { "name": "Disk read" },
+      "disk_write": { "name": "Disk write" },
+      "network_in": { "name": "Network in" },
+      "network_out": { "name": "Network out" },
+      "network_total_in": { "name": "Network total in" },
+      "network_total_out": { "name": "Network total out" },
+      "cpu_iowait": { "name": "CPU IOwait" },
+      "cpu_steal": { "name": "CPU steal" },
+      "last_boot": { "name": "Last boot" },
+      "containers_running": { "name": "Containers running" },
+      "sites_up": { "name": "Sites up" },
+      "cert_min_days_left": { "name": "Cert min days left" },
+      "pending_updates": { "name": "Pending updates" },
+      "pending_security_updates": { "name": "Pending security updates" },
+      "last_job": {
+        "name": "Last host job",
+        "state": {
+          "running": "Running",
+          "done": "Done",
+          "failed": "Failed"
+        }
+      },
+      "container_cpu": { "name": "CPU" },
+      "container_memory": { "name": "Memory" },
+      "site_cert_expiry": { "name": "Site {name} cert expiry" }
+    },
+    "binary_sensor": {
+      "reboot_required": { "name": "Reboot required" },
+      "maintenance_running": { "name": "Maintenance running" },
+      "service": { "name": "Service {name}" },
+      "container_running": { "name": "Running" },
+      "container_health": { "name": "Health" },
+      "site": { "name": "Site {name}" }
+    },
+    "button": {
+      "check_updates": { "name": "Check for updates" },
+      "install_updates": { "name": "Install updates" },
+      "reboot": { "name": "Reboot" }
+    },
+    "update": {
+      "system_packages": { "name": "System packages" }
+    }
+  },
+  "exceptions": {
+    "action_busy": { "message": "Another action is already running" },
+    "action_forbidden": { "message": "The API key lacks the control scope" },
+    "action_auth": { "message": "The API key was rejected" },
+    "action_failed": { "message": "Action {action} failed: {error}" }
+  }
+}
