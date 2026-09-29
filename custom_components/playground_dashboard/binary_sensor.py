@@ -23,6 +23,7 @@ from .entity import (
     ServiceEntity,
     SiteEntity,
     async_setup_dynamic,
+    container_is_settled,
 )
 
 PARALLEL_UPDATES = 0
@@ -137,7 +138,13 @@ async def async_setup_entry(
             return entities
 
         entry.async_on_unload(
-            async_setup_dynamic(coordinator, async_add_entities, "containers", _containers)
+            async_setup_dynamic(
+                coordinator,
+                async_add_entities,
+                "containers",
+                _containers,
+                include_fn=container_is_settled,
+            )
         )
 
     if entry.options.get(CONF_SITES, True):

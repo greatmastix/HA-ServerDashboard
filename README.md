@@ -65,8 +65,9 @@ failing_host), Site `<name>` cert expiry.
 
 \* disabled by default.
 
-New containers and sites are picked up automatically. Entities of removed containers/sites become unavailable;
-you can delete them (or the container device) from the UI.
+New containers and sites are picked up automatically (containers once they're at least a minute old, so one-off
+`docker run` containers don't create devices). When a container, site or service disappears from the dashboard,
+its entities (and the container's device) are removed from Home Assistant; they're recreated if it comes back.
 
 ## Example automations
 

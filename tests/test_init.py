@@ -10,9 +10,12 @@ from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+from custom_components.playground_dashboard.const import DOMAIN
 
 from .conftest import API, make_entry
 
@@ -126,11 +129,18 @@ async def test_setup_503_retries(hass: HomeAssistant, aioclient_mock) -> None:
 
 
 async def test_dynamic_containers(hass: HomeAssistant, aioclient_mock, state) -> None:
-    """New containers get entities at runtime; removed ones go unavailable."""
+    """New containers get entities at runtime; removed ones are deleted, and come back."""
     aioclient_mock.get(f"{API}/state", json=state)
-    await _setup(hass)
+    entry = await _setup(hass)
+    ent_reg = er.async_get(hass)
+    dev_reg = dr.async_get(hass)
     assert hass.states.get("binary_sensor.new_app_1_running") is None
+    assert _container_devices(dev_reg, entry) == {
+        "myhost_container_shortener_app_1",
+        "myhost_container_worker_app_1",
+    }
 
+    worker = state["containers"][1]
     new = dict(state["containers"][0], key="new_app_1", name="new-app-1", health=None)
     state["containers"] = [state["containers"][0], new]  # worker removed, new added
     aioclient_mock.clear_requests()
@@ -138,8 +148,14 @@ async def test_dynamic_containers(hass: HomeAssistant, aioclient_mock, state) ->
     await _tick(hass)
 
     assert hass.states.get("binary_sensor.new_app_1_running").state == STATE_ON
-    assert hass.states.get("binary_sensor.worker_app_1_running").state == STATE_UNAVAILABLE
     assert hass.states.get("binary_sensor.shortener_app_1_running").state == STATE_ON
+    # removed container: entities and device are gone from HA
+    assert hass.states.get("binary_sensor.worker_app_1_running") is None
+    assert ent_reg.async_get("binary_sensor.worker_app_1_running") is None
+    assert _container_devices(dev_reg, entry) == {
+        "myhost_container_shortener_app_1",
+        "myhost_container_new_app_1",
+    }
 
     # health appears later → health entity gets added
     state["containers"][1]["health"] = "unhealthy"
@@ -148,9 +164,82 @@ async def test_dynamic_containers(hass: HomeAssistant, aioclient_mock, state) ->
     await _tick(hass)
     assert hass.states.get("binary_sensor.new_app_1_health").state == STATE_ON
 
-    # the removed container's entity stays registered (unavailable), no reload needed
+    # the removed container comes back → entities are created again
+    state["containers"].append(worker)
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(f"{API}/state", json=state)
+    await _tick(hass)
+    assert hass.states.get("binary_sensor.worker_app_1_running").state == STATE_OFF
+
+
+async def test_young_containers_skipped(
+    hass: HomeAssistant, aioclient_mock, state, freezer
+) -> None:
+    """Containers younger than a minute (one-off runs) get no entities until they settle."""
+    aioclient_mock.get(f"{API}/state", json=state)
+    entry = await _setup(hass)
+    created = dt_util.utcnow().isoformat()
+    state["containers"].append(
+        dict(state["containers"][0], key="oneoff_run_1", name="oneoff-run-1", created=created)
+    )
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(f"{API}/state", json=state)
+    freezer.tick(timedelta(seconds=31))
+    await _tick(hass, 0)
+    assert hass.states.get("binary_sensor.oneoff_run_1_running") is None
+    assert "myhost_container_oneoff_run_1" not in _container_devices(dr.async_get(hass), entry)
+
+    freezer.tick(timedelta(seconds=31))
+    await _tick(hass, 0)
+    assert hass.states.get("binary_sensor.oneoff_run_1_running").state == STATE_ON
+
+
+async def test_stale_devices_cleaned_at_setup(hass: HomeAssistant, aioclient_mock, state) -> None:
+    """Devices/entities left over from containers that no longer exist are removed on startup."""
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    dev_reg = dr.async_get(hass)
     ent_reg = er.async_get(hass)
-    assert ent_reg.async_get("binary_sensor.worker_app_1_running") is not None
+    dev_reg.async_get_or_create(
+        config_entry_id=entry.entry_id, identifiers={(DOMAIN, "myhost")}, name="myhost"
+    )
+    for i in range(5):
+        dev = dev_reg.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, f"myhost_container_gone_{i}")},
+            name=f"gone-{i}",
+        )
+        ent_reg.async_get_or_create(
+            "binary_sensor",
+            DOMAIN,
+            f"myhost_container_gone_{i}_running",
+            config_entry=entry,
+            device_id=dev.id,
+        )
+    ent_reg.async_get_or_create(
+        "binary_sensor", DOMAIN, "myhost_site_oldsite_up", config_entry=entry
+    )
+
+    aioclient_mock.get(f"{API}/state", json=state)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert _container_devices(dev_reg, entry) == {
+        "myhost_container_shortener_app_1",
+        "myhost_container_worker_app_1",
+    }
+    uids = {e.unique_id for e in er.async_entries_for_config_entry(ent_reg, entry.entry_id)}
+    assert not any("gone_" in uid or "oldsite" in uid for uid in uids)
+    assert "myhost_container_worker_app_1_running" in uids
+
+
+def _container_devices(dev_reg, entry) -> set[str]:
+    return {
+        ident
+        for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id)
+        for d, ident in device.identifiers
+        if d == DOMAIN and "_container_" in ident
+    }
 
 
 async def test_dynamic_sites(hass: HomeAssistant, aioclient_mock, state) -> None:

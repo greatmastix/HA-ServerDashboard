@@ -22,6 +22,9 @@ FAST_SCAN_INTERVAL: Final = timedelta(seconds=5)
 # How long to poll fast after pressing a button, even if `busy` isn't set yet.
 ACTION_BOOST: Final = timedelta(seconds=30)
 
+# Containers younger than this don't get entities yet (skips one-off `docker run` containers).
+CONTAINER_MIN_AGE: Final = timedelta(seconds=60)
+
 REQUEST_TIMEOUT: Final = 10
 API_PATH: Final = "/api/v1"
 

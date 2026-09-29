@@ -12,7 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import CONTAINER_MIN_AGE, DOMAIN
 from .coordinator import PlaygroundDashboardCoordinator
 
 
@@ -121,6 +121,28 @@ class ServiceEntity(PlaygroundDashboardItemEntity):
     unique_prefix = "service"
 
 
+def current_keys(
+    coordinator: PlaygroundDashboardCoordinator, collection: str, key_field: str = "key"
+) -> set[str] | None:
+    """Keys currently present in a list of /state, or None if unknown."""
+    if not coordinator.last_update_success or not coordinator.data:
+        return None
+    items = coordinator.data.get(collection)
+    if not isinstance(items, list):
+        return None
+    return {
+        str(item[key_field])
+        for item in items
+        if isinstance(item, dict) and item.get(key_field) not in (None, "")
+    }
+
+
+def container_is_settled(item: dict[str, Any]) -> bool:
+    """Skip containers younger than CONTAINER_MIN_AGE (short-lived one-off containers)."""
+    created = parse_ts(item.get("created"))
+    return created is None or dt_util.utcnow() - created >= CONTAINER_MIN_AGE
+
+
 @callback
 def async_setup_dynamic(
     coordinator: PlaygroundDashboardCoordinator,
@@ -128,24 +150,37 @@ def async_setup_dynamic(
     collection: str,
     factory: Callable[[dict[str, Any]], Iterable[Entity]],
     key_field: str = "key",
+    include_fn: Callable[[dict[str, Any]], bool] | None = None,
 ) -> Callable[[], None]:
     """Add entities for list items now and whenever new ones appear.
 
     `factory` is called with every item on every update; entities whose
     unique_id was already added are skipped, so a factory may start returning
-    an entity later (e.g. once a container gets a healthcheck).
+    an entity later (e.g. once a container gets a healthcheck). Items that
+    disappear are forgotten (__init__ removes their entities from the
+    registry), so they are added again if they come back. `include_fn` can
+    hold back new items (e.g. containers that are only a few seconds old).
     """
-    known: set[str] = set()
+    known: dict[str, set[str]] = {}
 
     @callback
     def _check() -> None:
+        present = current_keys(coordinator, collection, key_field)
+        if present is None:
+            return
+        for gone in known.keys() - present:
+            del known[gone]
         new: list[Entity] = []
         for item in (coordinator.data or {}).get(collection) or []:
             if not isinstance(item, dict) or item.get(key_field) in (None, ""):
                 continue
+            key = str(item[key_field])
+            if key not in known and include_fn is not None and not include_fn(item):
+                continue
+            added = known.setdefault(key, set())
             for entity in factory(item):
-                if entity.unique_id not in known:
-                    known.add(entity.unique_id)
+                if entity.unique_id not in added:
+                    added.add(entity.unique_id)
                     new.append(entity)
         if new:
             async_add_entities(new)

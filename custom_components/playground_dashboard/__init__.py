@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from homeassistant.const import CONF_API_KEY, CONF_URL, CONF_VERIFY_SSL, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -11,7 +11,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import PlaygroundDashboardApi
 from .const import CONF_CONTAINERS, CONF_SITES, DOMAIN
 from .coordinator import PlaygroundDashboardConfigEntry, PlaygroundDashboardCoordinator
-from .entity import container_device_id
+from .entity import container_device_id, current_keys
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -30,8 +30,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: PlaygroundDashboardConfi
     entry.runtime_data = coordinator
 
     _async_cleanup_disabled(hass, entry)
+    _async_remove_stale(hass, entry)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(
+        coordinator.async_add_listener(callback(lambda: _async_remove_stale(hass, entry)))
+    )
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     return True
 
@@ -69,6 +73,44 @@ def _async_cleanup_disabled(hass: HomeAssistant, entry: PlaygroundDashboardConfi
             d == DOMAIN and ident.startswith(tuple(prefixes)) for d, ident in device.identifiers
         ):
             dev_reg.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
+
+
+# Entity description keys per item type, used to rebuild the expected unique IDs.
+_ITEM_ENTITY_KEYS: dict[str, tuple[str, str, tuple[str, ...]]] = {
+    # unique-id prefix: (collection in /state, key field, description keys)
+    "container": ("containers", "key", ("running", "health", "cpu", "memory")),
+    "site": ("sites", "key", ("up", "cert_expiry")),
+    "service": ("services", "name", ("running",)),
+}
+
+
+@callback
+def _async_remove_stale(hass: HomeAssistant, entry: PlaygroundDashboardConfigEntry) -> None:
+    """Delete devices/entities of containers, sites and services that no longer exist."""
+    coordinator = entry.runtime_data
+    hostname = coordinator.hostname
+    ent_reg = er.async_get(hass)
+    dev_reg = dr.async_get(hass)
+
+    for prefix, (collection, key_field, suffixes) in _ITEM_ENTITY_KEYS.items():
+        present = current_keys(coordinator, collection, key_field)
+        if present is None:
+            continue
+        uid_prefix = f"{hostname}_{prefix}_"
+        valid = {f"{uid_prefix}{key}_{suffix}" for key in present for suffix in suffixes}
+        for ent in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+            if ent.unique_id.startswith(uid_prefix) and ent.unique_id not in valid:
+                ent_reg.async_remove(ent.entity_id)
+
+        if prefix != "container":
+            continue
+        valid_devices = {container_device_id(hostname, key) for key in present}
+        for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
+            if any(
+                d == DOMAIN and ident.startswith(uid_prefix) and ident not in valid_devices
+                for d, ident in device.identifiers
+            ):
+                dev_reg.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
 
 
 async def async_remove_config_entry_device(

@@ -31,6 +31,7 @@ from .entity import (
     PlaygroundDashboardEntity,
     SiteEntity,
     async_setup_dynamic,
+    container_is_settled,
     parse_ts,
 )
 
@@ -373,6 +374,7 @@ async def async_setup_entry(
                 lambda item: [
                     ContainerSensor(coordinator, desc, item) for desc in CONTAINER_SENSORS
                 ],
+                include_fn=container_is_settled,
             )
         )
     if entry.options.get(CONF_SITES, True):
